@@ -11,7 +11,11 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
+
+        OpenWeatherAPIManager.shared.requestAPI(37.65134, 127.08336) {
+            
+        }
+        
     }
 
 
