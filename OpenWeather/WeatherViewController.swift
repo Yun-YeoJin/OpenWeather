@@ -30,7 +30,7 @@ class WeatherViewController: UIViewController {
     
     @IBOutlet weak var commentLabel: UILabel! {
         didSet {
-    commentLabel.text = "   오늘도 행복한 하루 보내세요!!! 화이팅!!!  "
+            commentLabel.text = "   오늘도 행복한 하루 보내세요!!! 화이팅!!!  "
         }
     }
     
@@ -51,6 +51,7 @@ class WeatherViewController: UIViewController {
         dateLabelDesign()
         locationLabelDesign()
         requestWeatherAPI(37.65128, 127.08335)
+        iconImageViewDesign()
     }
     
     func labelCollectionDesign() {
@@ -89,18 +90,25 @@ class WeatherViewController: UIViewController {
         locationLabel.backgroundColor = .clear
     }
     
-   
+    func iconImageViewDesign() {
+        iconImageView.backgroundColor = .white
+        iconImageView.layer.cornerRadius = 10
+        iconImageView.layer.borderWidth = 1
+        iconImageView.contentMode = .scaleAspectFit
+    }
+    
+    
     
     func requestWeatherAPI(_ lat: Double, _ lon: Double) {
         
         let url = "\(EndPoint.weatherURL)lat=\(lat)&lon=\(lon)&appid=\(APIKey.openWeather)"
-   
+        
         AF.request(url, method: .get).validate().responseData { [self] response in
             switch response.result {
             case .success(let value):
                 let json = JSON(value)
-                         print("JSON: \(json)")
-            
+                print("JSON: \(json)")
+                
                 let name = json["name"].stringValue
                 locationLabel.text = " \(name) "
                 
@@ -113,13 +121,15 @@ class WeatherViewController: UIViewController {
                 let windspeed = json["wind"]["speed"].doubleValue
                 windspeedLabel.text = "  \(round(windspeed))m/s의 바람이 불고 있어요!!   "
                 
-
-                                       
+                let iconNumber = json["weather"][0]["icon"].stringValue
+                let url = URL(string: "https://openweathermap.org/img/wn/\(iconNumber)@2x.png")
+                
+                iconImageView.kf.setImage(with: url)
+                
             case .failure(let error):
                 print(error)
             }
         }
     }
-    
 }
 
