@@ -13,5 +13,5 @@ struct WeatherInfo {
     let temp: Double
     let humidity: Double
     let windspeed: Double
-    let weatherimage: String
+    
 }
