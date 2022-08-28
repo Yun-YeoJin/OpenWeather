@@ -7,15 +7,18 @@
 
 import UIKit
 
+import MapKit
+import CoreLocation
+
 import Alamofire
 import SwiftyJSON
 import Kingfisher
 
 class WeatherViewController: UIViewController {
     
-    var weatherList: [String] = []
+    let locationManager = CLLocationManager()
     
-    var weatherinfo: [WeatherInfo] = []
+    var currentRegion: CLLocationCoordinate2D?
     
     let today = Date()
     
@@ -28,11 +31,7 @@ class WeatherViewController: UIViewController {
     
     @IBOutlet weak var iconImageView: UIImageView!
     
-    @IBOutlet weak var commentLabel: UILabel! {
-        didSet {
-            commentLabel.text = "   오늘도 행복한 하루 보내세요!!! 화이팅!!!  "
-        }
-    }
+    @IBOutlet weak var commentLabel: UILabel!
     
     @IBOutlet var LabelCollection: [UILabel]!
     
@@ -47,11 +46,24 @@ class WeatherViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        locationManager.delegate = self
+        
         labelCollectionDesign()
         dateLabelDesign()
         locationLabelDesign()
-        requestWeatherAPI(37.65128, 127.08335)
+        //requestWeatherAPI(37.65128, 127.08335)
         iconImageViewDesign()
+        
+        OpenWeatherAPIManager.shared.requestAPI(37.65128, 127.08335) { value in
+            
+            let url = URL(string: "https://openweathermap.org/img/wn/\(value.iconNumber)@2x.png")
+            self.iconImageView.kf.setImage(with: url)
+            self.locationLabel.text = value.nameText
+            self.tempLabel.text = value.tempText
+            self.humidityLabel.text = value.humidityText
+            self.windspeedLabel.text = value.windSpeedText
+            self.commentLabel.text = value.commentText
+        }
     }
     
     func labelCollectionDesign() {
@@ -99,37 +111,112 @@ class WeatherViewController: UIViewController {
     
     
     
-    func requestWeatherAPI(_ lat: Double, _ lon: Double) {
+    //    func requestWeatherAPI(_ lat: Double, _ lon: Double) {
+    //
+    //        let url = "\(EndPoint.weatherURL)lat=\(lat)&lon=\(lon)&appid=\(APIKey.openWeather)"
+    //
+    //        AF.request(url, method: .get).validate().responseData { [self] response in
+    //            switch response.result {
+    //            case .success(let value):
+    //                let json = JSON(value)
+    //                print("JSON: \(json)")
+    //
+    //                let name = json["name"].stringValue
+    //                locationLabel.text = " \(name) "
+    //
+    //                let temp = json["main"]["temp"].doubleValue
+    //                tempLabel.text = "  지금은 \(round(temp - 273))℃ 에요!   "
+    //
+    //                let humidity = json["main"]["humidity"].doubleValue
+    //                humidityLabel.text = "  \(round(humidity))% 만큼 습해요 ㅠㅠ   "
+    //
+    //                let windspeed = json["wind"]["speed"].doubleValue
+    //                windspeedLabel.text = "  \(round(windspeed))m/s의 바람이 불고 있어요!!   "
+    //
+    //                let iconNumber = json["weather"][0]["icon"].stringValue
+    //                let url = URL(string: "https://openweathermap.org/img/wn/\(iconNumber)@2x.png")
+    //
+    //                iconImageView.kf.setImage(with: url)
+    //
+    //            case .failure(let error):
+    //                print(error)
+    //            }
+    //        }
+    //    }
+}
+
+extension WeatherViewController: CLLocationManagerDelegate {
+    
+    func checkUserDeviceLocationServiceAuthorization() {
         
-        let url = "\(EndPoint.weatherURL)lat=\(lat)&lon=\(lon)&appid=\(APIKey.openWeather)"
+        let authorizationStatus: CLAuthorizationStatus
         
-        AF.request(url, method: .get).validate().responseData { [self] response in
-            switch response.result {
-            case .success(let value):
-                let json = JSON(value)
-                print("JSON: \(json)")
-                
-                let name = json["name"].stringValue
-                locationLabel.text = " \(name) "
-                
-                let temp = json["main"]["temp"].doubleValue
-                tempLabel.text = "  지금은 \(round(temp - 273))℃ 에요!   "
-                
-                let humidity = json["main"]["humidity"].doubleValue
-                humidityLabel.text = "  \(round(humidity))% 만큼 습해요 ㅠㅠ   "
-                
-                let windspeed = json["wind"]["speed"].doubleValue
-                windspeedLabel.text = "  \(round(windspeed))m/s의 바람이 불고 있어요!!   "
-                
-                let iconNumber = json["weather"][0]["icon"].stringValue
-                let url = URL(string: "https://openweathermap.org/img/wn/\(iconNumber)@2x.png")
-                
-                iconImageView.kf.setImage(with: url)
-                
-            case .failure(let error):
-                print(error)
-            }
+        if #available(iOS 14.0, *) {
+            //인스턴스를 통해 locationManager가 가지고 있는 상태를 가져옴.
+            authorizationStatus = locationManager.authorizationStatus
+        } else {
+            authorizationStatus = CLLocationManager.authorizationStatus()
+        }
+        
+        //iOS 위치 서비스 활성화 여부 체크: locationServicesEnabled
+        if CLLocationManager.locationServicesEnabled() {
+            //위치 서비스가 활성화 되어 있음 => 위치 권한 요청 가능 => 위치 권한을 요청
+            checkUserCurrentLocationAuthorization(authorizationStatus)
+        } else {
+            print("위치 서비스가 꺼져 있어 위치 권한 요청이 불가합니다.")
+        }
+        
+    }
+    
+    func checkUserCurrentLocationAuthorization(_ authorizationStatus: CLAuthorizationStatus) {
+        switch authorizationStatus {
+            
+        case .notDetermined:
+            print("NOTDETERMINED")
+            
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationManager.requestWhenInUseAuthorization()
+            
+        case .restricted, .denied:
+            print("DENIED, 아이폰 설정으로 유도")
+            
+        case .authorizedWhenInUse:
+            print("WHEN IN USE")
+            
+            locationManager.startUpdatingLocation()
+            
+        default:
+            print("DEFAULT")
         }
     }
+    
+    
+    
+    func showRequestLocationServiceAlert() {
+        
+        let requestLocationServiceAlert = UIAlertController(title: "위치정보 이용", message: "위치 서비스를 사용할 수 없습니다. 기기의 '설정>개인정보 보호'에서 위치 서비스를 켜주세요.", preferredStyle: .alert)
+        let goSetting = UIAlertAction(title: "설정으로 이동", style: .destructive) { _ in
+            
+            if let appSetting = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(appSetting)
+            }
+            
+        }
+        let cancel = UIAlertAction(title: "취소", style: .default)
+        requestLocationServiceAlert.addAction(cancel)
+        requestLocationServiceAlert.addAction(goSetting)
+        
+        present(requestLocationServiceAlert, animated: true, completion: nil)
+    }
+    
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        
+        checkUserDeviceLocationServiceAuthorization()
+        
+    }
+    
 }
+
+
+
 
